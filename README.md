@@ -9,9 +9,10 @@ A modern web application for tracking and analyzing biometric time tracking comp
 - **Office Analysis**: Compare compliance metrics across offices with ranking, department, and shift breakdowns
 - **Entry Type Analysis**: Visualize distribution of entry types with weekly trends
 - **Employee Analysis**: Track individual employee compliance and identify enrollment needs
-- **Weekly Trends**: Historical compliance data with week-over-week comparisons
+- **Weekly Trends**: Historical compliance data with week-over-week comparisons (ISO week aligned)
 - **Clock Behavior**: Analyze clock-in/out attempts and identify training needs
 - **Data Explorer**: Browse and export raw time entry data
+- **ISO Week Alignment**: Properly counts unique weeks across offices with different week endings (Martinsburg Saturday, others Sunday)
 
 ### Admin Features
 - **Data Upload**: Upload CSV/Excel files with visual progress monitoring (3-stage workflow with progress bar)

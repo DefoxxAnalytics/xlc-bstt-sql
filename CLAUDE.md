@@ -141,12 +141,33 @@ npm start
 - Total Entries
 - Total Hours
 - Unique Employees
+- Unique Weeks (ISO week count - aligns Saturday/Sunday week endings)
 - Entries per Employee
 
 ### Efficiency Metrics
 - Average Clock-In Tries
 - Average Clock-Out Tries
 - First Attempt Success Rate
+
+## ISO Week Alignment
+
+The "Unique Weeks" KPI uses ISO week numbers (`week_year` + `week_number`) instead of distinct dates to properly align different week endings across offices:
+
+- **Martinsburg**: Week ends on Saturday
+- **Other offices**: Week ends on Sunday
+
+By using ISO week numbers, Saturday (e.g., 2025-11-29) and Sunday (e.g., 2025-11-30) of the same calendar week are counted as **one week**, not two.
+
+### Implementation
+```python
+# In kpis/calculator.py
+unique_weeks=Count(
+    Concat('week_year', Value('-'), 'week_number'),
+    distinct=True
+),
+```
+
+This affects: `volume_kpis()`, `by_office()`, `by_department()`, `by_shift()`
 
 ## API Endpoints
 
@@ -194,13 +215,14 @@ docker-compose exec backend python manage.py migrate
 ```typescript
 COLORS = {
   accent: {
-    primary: '#6366f1',    // Indigo
+    primary: '#06b6d4',    // Cyan
     secondary: '#8b5cf6',  // Purple
   },
   status: {
-    success: '#22c55e',    // Green (meeting target)
+    success: '#10b981',    // Emerald (meeting target)
     warning: '#f59e0b',    // Amber (close to target)
-    error: '#ef4444',      // Red (below target)
+    danger: '#ef4444',     // Red (below target) - NOTE: use 'danger' not 'error'
+    info: '#3b82f6',       // Blue (neutral info)
   }
 }
 ```
