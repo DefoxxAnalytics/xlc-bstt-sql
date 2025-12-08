@@ -8,3 +8,8 @@ gunicorn>=21.0
 whitenoise>=6.6
 dj-database-url>=2.0
 psycopg2-binary>=2.9
+# SQL Server support
+mssql-django>=1.3
+pyodbc>=5.0
+# Windows production server
+waitress>=2.1

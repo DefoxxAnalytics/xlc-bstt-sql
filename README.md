@@ -1,6 +1,11 @@
 # BSTT Compliance Dashboard
 
-A modern web application for tracking and analyzing biometric time tracking compliance across multiple XLC offices. Built with Django REST Framework and React TypeScript, deployed via Docker.
+A modern web application for tracking and analyzing biometric time tracking compliance across multiple XLC offices. Built with Django REST Framework and React TypeScript.
+
+**Deployment Options:**
+- **IIS on Windows Server** (Recommended) - Zero cost, uses existing infrastructure
+- **Docker Compose** - For containerized deployments
+- **Cloud PaaS** - Railway, Render, Fly.io
 
 ## Features
 
@@ -39,9 +44,9 @@ A modern web application for tracking and analyzing biometric time tracking comp
 - Lucide React for icons
 
 ### Infrastructure
-- Docker & Docker Compose
-- Nginx reverse proxy
-- Gunicorn WSGI server
+- **Windows Server**: IIS + Waitress WSGI server (recommended)
+- **Docker**: Docker Compose + Nginx + Gunicorn
+- **Database**: SQLite (dev) / SQL Server or PostgreSQL (production)
 
 ## Quick Start
 
@@ -271,14 +276,88 @@ docker-compose down
 
 Choose your deployment method:
 
-| Method | Best For | Database | SSL |
-|--------|----------|----------|-----|
-| **Docker Compose** | VPS, bare metal | SQLite/PostgreSQL | Manual (nginx) |
-| **Railway** | Quick deploy, teams | PostgreSQL | Automatic |
-| **Render** | Static + API apps | PostgreSQL | Automatic |
-| **Fly.io** | Global edge, scaling | PostgreSQL | Automatic |
+| Method | Best For | Database | Cost |
+|--------|----------|----------|------|
+| **IIS on Windows Server** | Enterprise, existing infrastructure | SQL Server | Zero (uses existing) |
+| **Docker Compose** | VPS, bare metal | SQLite/PostgreSQL | Server costs |
+| **Railway/Render/Fly.io** | Quick deploy, teams | PostgreSQL | PaaS pricing |
 
-### Option A: Docker Compose (VPS/Self-Hosted)
+### Option A: IIS on Windows Server (Recommended)
+
+**Best for:** Enterprise environments with existing Windows Server and SQL Server infrastructure. **No Docker required. No extra costs.**
+
+See [deploy/README.md](deploy/README.md) for complete deployment instructions.
+
+#### Quick Start
+
+```powershell
+# 1. Prepare SQL Server (run on your SQL Server)
+CREATE LOGIN [svc_bstt_web] WITH PASSWORD = 'YourSecurePassword123!';
+CREATE DATABASE [BSTT];
+USE [BSTT];
+CREATE USER [svc_bstt_web] FOR LOGIN [svc_bstt_web];
+ALTER ROLE db_owner ADD MEMBER [svc_bstt_web];
+
+# 2. Deploy to Windows Server (run as Administrator)
+cd BSTT-Web\deploy
+.\deploy_iis.ps1 -SqlServer "your-sql-server" -SqlPassword "YourSecurePassword123!"
+
+# 3. Run database migrations
+cd C:\BSTT-Web\backend
+.\.venv\Scripts\activate
+python manage.py migrate
+python manage.py createsuperuser
+
+# 4. Import initial data
+python manage.py sync_csv --year 2025
+```
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Windows Server (Existing)                                  │
+│                                                             │
+│  ┌─────────────────────┐    ┌─────────────────────────────┐ │
+│  │  IIS                │    │  Waitress (Python)          │ │
+│  │  - React static     │───▶│  - Django REST API          │ │
+│  │  - Port 80          │    │  - Port 8000                │ │
+│  └─────────────────────┘    └─────────────────────────────┘ │
+│             │                           │                   │
+│             └───────────┬───────────────┘                   │
+│                         ▼                                   │
+│                 SQL Server (Existing)                       │
+│                   - BSTT Database                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Weekly Data Updates
+
+Set up automatic weekly sync from production (FOXXSQLPROD):
+
+```powershell
+# After initial deployment
+.\setup_weekly_sync.ps1 -ProductionUser "svc_bstt_sync" -ProductionPassword "password"
+```
+
+This creates a scheduled task that runs **every Sunday at 2 AM** to pull the latest payroll week.
+
+**Manual sync commands:**
+```powershell
+cd C:\BSTT-Web\backend
+.\.venv\Scripts\activate
+
+# Sync last week
+python manage.py sync_production --weeks 1
+
+# Sync last 4 weeks
+python manage.py sync_production --weeks 4
+
+# Sync entire year
+python manage.py sync_production --year 2025
+```
+
+### Option B: Docker Compose (VPS/Self-Hosted)
 
 Best for: Full control, existing infrastructure, on-premise deployment.
 

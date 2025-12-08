@@ -69,10 +69,27 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database Configuration
-# Priority: DATABASE_URL (PaaS) > DATABASE_PATH (Docker) > Default SQLite
+# Priority: SQL_SERVER_HOST > DATABASE_URL (PaaS) > DATABASE_PATH (Docker) > Default SQLite
+SQL_SERVER_HOST = os.environ.get('SQL_SERVER_HOST')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-if DATABASE_URL:
+if SQL_SERVER_HOST:
+    # SQL Server for production (connects to existing SQL Server)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'mssql',
+            'NAME': os.environ.get('SQL_SERVER_DATABASE', 'BSTT'),
+            'HOST': SQL_SERVER_HOST,
+            'USER': os.environ.get('SQL_SERVER_USER', 'svc_bstt_web'),
+            'PASSWORD': os.environ.get('SQL_SERVER_PASSWORD', ''),
+            'PORT': os.environ.get('SQL_SERVER_PORT', '1433'),
+            'OPTIONS': {
+                'driver': 'ODBC Driver 17 for SQL Server',
+                'TrustServerCertificate': 'yes',
+            },
+        }
+    }
+elif DATABASE_URL:
     # PostgreSQL for PaaS platforms (Railway, Render, Fly.io)
     DATABASES = {
         'default': dj_database_url.config(
