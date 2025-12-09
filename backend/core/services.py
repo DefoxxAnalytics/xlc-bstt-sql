@@ -116,17 +116,21 @@ COLUMN_MAPPING = {
 }
 
 
-def process_uploaded_file(upload: DataUpload) -> tuple[bool, str, int]:
+def process_uploaded_file(upload: DataUpload) -> tuple[bool, str, int, int]:
     """
     Process an uploaded data file and import records into the database.
+
+    Handles duplicate detection based on unique constraint:
+    (applicant_id, xlc_operation, dt_end_cli_work_week, dt_time_start)
 
     Args:
         upload: DataUpload instance to process
 
     Returns:
-        Tuple of (success, message, records_processed)
+        Tuple of (success, message, records_processed, records_skipped)
     """
     start_time = time.time()
+    records_skipped = 0
 
     try:
         # Read file based on type
@@ -138,15 +142,16 @@ def process_uploaded_file(upload: DataUpload) -> tuple[bool, str, int]:
             df = pd.read_excel(file_path)
 
         if df.empty:
-            return False, "Uploaded file is empty", 0
+            return False, "Uploaded file is empty", 0, 0
 
         year = upload.year
+        total_in_file = len(df)
 
         # Create ETL history record
         etl = ETLHistory.objects.create(
             year=year,
             status='running',
-            message=f"Processing uploaded file: {upload.filename}"
+            message=f"Processing uploaded file: {upload.filename} ({total_in_file} records)"
         )
 
         # Process the data
@@ -204,24 +209,60 @@ def process_uploaded_file(upload: DataUpload) -> tuple[bool, str, int]:
                     lambda d: d.isocalendar()[0] if d else None
                 )
 
+            # Remove duplicates within the file itself first
+            # Based on unique key: applicant_id + xlc_operation + dt_end_cli_work_week + dt_time_start
+            unique_cols = ['applicant_id', 'xlc_operation', 'dt_end_cli_work_week', 'dt_time_start']
+            if all(col in df_clean.columns for col in unique_cols):
+                before_dedup = len(df_clean)
+                df_clean = df_clean.drop_duplicates(subset=unique_cols, keep='first')
+                in_file_dupes = before_dedup - len(df_clean)
+                if in_file_dupes > 0:
+                    records_skipped += in_file_dupes
+
             # Create TimeEntry objects
             records = df_clean.to_dict('records')
             entries = [TimeEntry(**record) for record in records]
 
-            # Bulk create
-            TimeEntry.objects.bulk_create(entries, batch_size=5000)
+            # Bulk create with ignore_conflicts to skip duplicates against existing DB records
+            # This uses the unique constraint we added to the model
+            created_entries = TimeEntry.objects.bulk_create(
+                entries,
+                batch_size=5000,
+                ignore_conflicts=True
+            )
 
-            records_count = len(entries)
+            # Calculate how many were actually inserted vs skipped
+            # Note: bulk_create with ignore_conflicts doesn't return PKs for skipped records
+            # We need to count the difference
+            records_count = len(created_entries)
+
+            # If not replacing, some may have been skipped due to DB duplicates
+            if not upload.replace_existing:
+                # Count actual records in DB after insert for this upload's data
+                # This is an approximation - we count what was supposed to be inserted
+                db_skipped = len(entries) - records_count
+                records_skipped += db_skipped
 
         # Update ETL history
         elapsed = time.time() - start_time
         etl.status = 'success'
         etl.records_processed = records_count
         etl.duration_seconds = elapsed
-        etl.message = f"Successfully imported {records_count} records from upload"
+
+        if records_skipped > 0:
+            etl.message = f"Imported {records_count} records, skipped {records_skipped} duplicates"
+        else:
+            etl.message = f"Successfully imported {records_count} records from upload"
         etl.save()
 
-        return True, f"Successfully imported {records_count} records", records_count
+        # Update upload record with detailed stats
+        upload.records_in_file = total_in_file
+        upload.records_skipped = records_skipped
+        upload.save(update_fields=['records_in_file', 'records_skipped'])
+
+        if records_skipped > 0:
+            return True, f"Imported {records_count} records, skipped {records_skipped} duplicates", records_count, records_skipped
+        return True, f"Successfully imported {records_count} records", records_count, records_skipped
 
     except Exception as e:
         elapsed = time.time() - start_time
@@ -237,4 +278,4 @@ def process_uploaded_file(upload: DataUpload) -> tuple[bool, str, int]:
         except:
             pass
 
-        return False, f"Error processing file: {error_msg}", 0
+        return False, f"Error processing file: {error_msg}", 0, 0

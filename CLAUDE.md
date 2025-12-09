@@ -80,9 +80,9 @@ BSTT-Web/
 ### Backend
 | File | Purpose |
 |------|---------|
-| `core/models.py` | TimeEntry (50+ fields), DataUpload, ETLHistory models |
+| `core/models.py` | TimeEntry (50+ fields with unique constraint), DataUpload, ETLHistory models |
 | `core/admin.py` | Custom admin site with database management views |
-| `core/services.py` | File upload processing (CSV/Excel) |
+| `core/services.py` | File upload processing with duplicate detection |
 | `kpis/calculator.py` | KPICalculator with 35+ KPI methods |
 | `reports/generators.py` | BSTTReportGenerator for Excel exports |
 | `config/settings.py` | Django settings with KPI thresholds |
@@ -90,10 +90,11 @@ BSTT-Web/
 ### Frontend
 | File | Purpose |
 |------|---------|
-| `api/client.ts` | API endpoints for KPIs, data, reports |
-| `components/layout/Sidebar.tsx` | Navigation with admin links |
+| `api/client.ts` | API endpoints for KPIs, data, reports (uses env vars) |
+| `components/layout/Sidebar.tsx` | Navigation with admin links (uses getAdminUrl) |
+| `components/SmartInsights.tsx` | KPI insights with drill-through navigation |
 | `contexts/FilterContext.tsx` | Global filter state management |
-| `pages/Dashboard.tsx` | Executive dashboard with KPIs |
+| `pages/Dashboard.tsx` | Executive dashboard with KPIs and drill-through |
 | `constants/colors.ts` | Theme colors and status colors |
 
 ## Running the Application
@@ -153,7 +154,7 @@ npm start
 ## Admin Features
 
 ### Custom Admin Site (`BSTTAdminSite`)
-- **Data Uploads**: Upload CSV/Excel with visual progress monitoring
+- **Data Uploads**: Upload CSV/Excel with visual progress monitoring and duplicate detection
 - **Database Management**: Clear data by year or reset entire database
 - **User Management**: Django auth with User/Group administration
 
@@ -161,6 +162,22 @@ npm start
 - `/admin/` - Main admin panel
 - `/admin/core/dataupload/add/` - Upload new data file
 - `/admin/database-management/` - Database management dashboard
+
+## Duplicate Detection
+
+Time entries are deduplicated based on a unique constraint:
+- `applicant_id` + `xlc_operation` + `dt_end_cli_work_week` + `dt_time_start`
+
+### How It Works
+1. **In-file deduplication**: Removes duplicates within the uploaded file itself
+2. **Database deduplication**: Uses `bulk_create(ignore_conflicts=True)` to skip records that already exist
+3. **Tracking**: Records `records_in_file`, `records_processed`, and `records_skipped` for each upload
+
+### Upload Statistics
+The admin panel shows:
+- **Records in File**: Total rows in the uploaded file
+- **Records Processed**: Successfully inserted records
+- **Records Skipped**: Duplicate records that were skipped
 
 ## KPI Categories
 

@@ -54,10 +54,10 @@ class ETLHistoryAdmin(admin.ModelAdmin):
 @admin.register(DataUpload)
 class DataUploadAdmin(admin.ModelAdmin):
     list_display = ['id', 'filename_display', 'year', 'file_type', 'status_display',
-                   'records_processed', 'uploaded_at', 'uploaded_by']
+                   'records_processed', 'records_skipped', 'uploaded_at', 'uploaded_by']
     list_filter = ['year', 'status', 'file_type', 'uploaded_at']
-    readonly_fields = ['status', 'records_processed', 'error_message', 'processing_time',
-                      'uploaded_at', 'uploaded_by']
+    readonly_fields = ['status', 'records_processed', 'records_skipped', 'records_in_file',
+                      'error_message', 'processing_time', 'uploaded_at', 'uploaded_by']
     actions = ['process_uploads']
 
     # Use custom template with upload progress indicator
@@ -72,7 +72,8 @@ class DataUploadAdmin(admin.ModelAdmin):
                           '(e.g., FullName, XLC Operation, EntryType, dtEndCliWorkWeek, etc.)'
         }),
         ('Processing Status', {
-            'fields': ('status', 'records_processed', 'processing_time', 'error_message'),
+            'fields': ('status', 'records_in_file', 'records_processed', 'records_skipped',
+                      'processing_time', 'error_message'),
             'classes': ('collapse',)
         }),
         ('Audit', {
@@ -113,9 +114,10 @@ class DataUploadAdmin(admin.ModelAdmin):
         upload.status = 'processing'
         upload.save()
 
-        success, message, records = process_uploaded_file(upload)
+        success, message, records, skipped = process_uploaded_file(upload)
 
         upload.records_processed = records
+        upload.records_skipped = skipped
         if success:
             upload.status = 'success'
             upload.error_message = ''
@@ -132,18 +134,21 @@ class DataUploadAdmin(admin.ModelAdmin):
         """Admin action to process selected uploads."""
         processed = 0
         failed = 0
+        total_skipped = 0
 
         for upload in queryset.filter(status__in=['pending', 'failed']):
             upload.status = 'processing'
             upload.save()
 
-            success, message, records = process_uploaded_file(upload)
+            success, message, records, skipped = process_uploaded_file(upload)
 
             upload.records_processed = records
+            upload.records_skipped = skipped
             if success:
                 upload.status = 'success'
                 upload.error_message = ''
                 processed += 1
+                total_skipped += skipped
             else:
                 upload.status = 'failed'
                 upload.error_message = message
@@ -152,7 +157,10 @@ class DataUploadAdmin(admin.ModelAdmin):
             upload.save()
 
         if processed:
-            messages.success(request, f'Successfully processed {processed} upload(s)')
+            msg = f'Successfully processed {processed} upload(s)'
+            if total_skipped > 0:
+                msg += f' ({total_skipped} duplicate records skipped)'
+            messages.success(request, msg)
         if failed:
             messages.error(request, f'Failed to process {failed} upload(s)')
 

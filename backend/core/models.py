@@ -66,6 +66,14 @@ class TimeEntry(models.Model):
             models.Index(fields=['xlc_operation', 'entry_type']),
             models.Index(fields=['week_year', 'week_number']),
         ]
+        constraints = [
+            # Unique constraint for duplicate detection
+            # A time entry is unique based on: employee + office + week + clock-in time
+            models.UniqueConstraint(
+                fields=['applicant_id', 'xlc_operation', 'dt_end_cli_work_week', 'dt_time_start'],
+                name='unique_time_entry'
+            ),
+        ]
 
     def __str__(self):
         return f"{self.full_name} - {self.xlc_operation} - {self.dt_end_cli_work_week}"
@@ -127,6 +135,8 @@ class DataUpload(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=UPLOAD_STATUS_CHOICES, default='pending')
     records_processed = models.IntegerField(default=0)
+    records_skipped = models.IntegerField(default=0, help_text="Duplicate records skipped")
+    records_in_file = models.IntegerField(default=0, help_text="Total records in uploaded file")
     error_message = models.TextField(blank=True)
     processing_time = models.FloatField(null=True, blank=True, help_text="Processing time in seconds")
     replace_existing = models.BooleanField(
