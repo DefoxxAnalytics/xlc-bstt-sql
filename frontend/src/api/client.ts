@@ -1,7 +1,13 @@
 import axios from 'axios';
 import { KPIs, OfficeKPIs, WeeklyKPIs, FilterOptions, Filters, TimeEntry } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const ADMIN_BASE_URL = process.env.REACT_APP_ADMIN_URL || '/admin';
+
+// Helper to get admin panel URLs
+export const getAdminUrl = (path: string = ''): string => {
+  return `${ADMIN_BASE_URL}${path}`;
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,

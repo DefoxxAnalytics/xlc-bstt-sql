@@ -20,14 +20,17 @@ interface Insight {
   description: string;
   metric?: string;
   action?: string;
+  drillThrough?: string; // Navigation path for drill-through
+  drillThroughParams?: Record<string, string>; // Optional filter params
 }
 
 interface SmartInsightsProps {
   data: InsightData;
   maxInsights?: number;
+  onDrillThrough?: (path: string, params?: Record<string, string>) => void;
 }
 
-const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) => {
+const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4, onDrillThrough }) => {
   const insights = useMemo(() => {
     const allInsights: Insight[] = [];
     const { kpis, weeklyKPIs, officeKPIs, employeeKPIs } = data;
@@ -43,6 +46,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
         title: 'Excellent Compliance',
         description: `Finger rate at ${kpis.finger_rate}% exceeds ${THRESHOLDS.finger_rate.excellent}% target`,
         metric: `${kpis.finger_rate}%`,
+        drillThrough: '/office-analysis',
       });
     } else if (kpis.finger_rate < THRESHOLDS.finger_rate.good) {
       allInsights.push({
@@ -53,6 +57,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
         description: `Finger rate at ${kpis.finger_rate}% is below minimum ${THRESHOLDS.finger_rate.good}% threshold`,
         metric: `${kpis.finger_rate}%`,
         action: 'Review non-compliant offices',
+        drillThrough: '/office-analysis',
       });
     }
 
@@ -70,6 +75,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           title: 'Week-over-Week Improvement',
           description: `Finger rate improved by ${change.toFixed(1)} points this week`,
           metric: `+${change.toFixed(1)}%`,
+          drillThrough: '/trends',
         });
       } else if (change < -1) {
         allInsights.push({
@@ -80,6 +86,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           description: `Finger rate dropped by ${Math.abs(change).toFixed(1)} points this week`,
           metric: `${change.toFixed(1)}%`,
           action: 'Investigate recent changes',
+          drillThrough: '/trends',
         });
       }
     }
@@ -100,6 +107,8 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           description: `${gap.toFixed(1)} point gap between ${best.office} (${best.finger_rate}%) and ${worst.office} (${worst.finger_rate}%)`,
           metric: `${gap.toFixed(1)}pt gap`,
           action: `Focus on ${worst.office}`,
+          drillThrough: '/office-analysis',
+          drillThroughParams: { xlc_operation: worst.office },
         });
       }
 
@@ -114,6 +123,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           description: `${belowTarget.map(o => o.office).join(', ')} need${belowTarget.length === 1 ? 's' : ''} attention`,
           metric: `${belowTarget.length} offices`,
           action: 'View Office Analysis',
+          drillThrough: '/office-analysis',
         });
       }
     }
@@ -130,6 +140,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           description: `${needsEnrollment.length} employee${needsEnrollment.length > 1 ? 's' : ''} with 3+ provisional entries`,
           metric: `${needsEnrollment.length} employees`,
           action: 'View Enrollment List',
+          drillThrough: '/employees',
         });
       }
     }
@@ -143,6 +154,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
         title: 'High Provisional Rate',
         description: `Provisional entries at ${kpis.provisional_rate.toFixed(2)}% - check biometric equipment`,
         metric: `${kpis.provisional_rate.toFixed(2)}%`,
+        drillThrough: '/employees',
       });
     }
 
@@ -155,6 +167,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
         title: 'Elevated Write-In Rate',
         description: `Manual entries at ${kpis.write_in_rate.toFixed(2)}% - review approval process`,
         metric: `${kpis.write_in_rate.toFixed(2)}%`,
+        drillThrough: '/data-explorer',
       });
     }
 
@@ -169,6 +182,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
           title: 'High Activity Period',
           description: `${avgEntriesPerEmployee.toFixed(0)} entries per employee on average`,
           metric: `${avgEntriesPerEmployee.toFixed(0)} avg`,
+          drillThrough: '/data-explorer',
         });
       }
     }
@@ -244,13 +258,29 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {insights.map((insight) => {
           const styles = getTypeStyles(insight.type);
+          const isClickable = !!insight.drillThrough && !!onDrillThrough;
           return (
             <div
               key={insight.id}
-              className="p-2.5 rounded-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
+              className={`p-2.5 rounded-md transition-all duration-200 group ${
+                isClickable ? 'hover:scale-[1.01] cursor-pointer' : ''
+              }`}
               style={{
                 background: styles.bg,
                 border: `1px solid ${styles.border}`,
+              }}
+              onClick={() => {
+                if (isClickable) {
+                  onDrillThrough(insight.drillThrough!, insight.drillThroughParams);
+                }
+              }}
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              onKeyDown={(e) => {
+                if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onDrillThrough(insight.drillThrough!, insight.drillThroughParams);
+                }
               }}
             >
               <div className="flex items-start gap-2">
@@ -280,7 +310,7 @@ const SmartInsights: React.FC<SmartInsightsProps> = ({ data, maxInsights = 4 }) 
                   >
                     {insight.description}
                   </p>
-                  {insight.action && (
+                  {insight.action && isClickable && (
                     <div
                       className="flex items-center gap-1 mt-1.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ color: styles.icon }}

@@ -124,6 +124,16 @@ const Dashboard: React.FC = () => {
     navigate('/employees');
   };
 
+  // Handle drill-through from SmartInsights
+  const handleInsightDrillThrough = (path: string, params?: Record<string, string>) => {
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        updateFilter(key as keyof typeof filters, value);
+      });
+    }
+    navigate(path);
+  };
+
   useEffect(() => {
     if (!kpisLoading && kpis) {
       setLastUpdated(new Date());
@@ -370,6 +380,7 @@ const Dashboard: React.FC = () => {
           <SmartInsights
             data={{ kpis, weeklyKPIs, officeKPIs, employeeKPIs }}
             maxInsights={4}
+            onDrillThrough={handleInsightDrillThrough}
           />
         </div>
       </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { COLORS } from '../constants/colors';
 import { useFilters } from '../contexts/FilterContext';
+import { downloadFullReport } from '../api/client';
 
 interface CommandItem {
   id: string;
@@ -29,7 +30,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { updateFilter, clearFilters, filterOptions } = useFilters();
+  const { filters, updateFilter, clearFilters, filterOptions } = useFilters();
 
   const commands: CommandItem[] = useMemo(() => {
     const items: CommandItem[] = [
@@ -97,9 +98,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         icon: <Download size={16} />,
         category: 'action',
         action: () => {
-          // Trigger download
+          // Trigger download with current filters
           const link = document.createElement('a');
-          link.href = 'http://localhost:8000/api/reports/full/?year=2025';
+          link.href = downloadFullReport(filters);
           link.download = 'BSTT-Report.xlsx';
           link.click();
           onClose();

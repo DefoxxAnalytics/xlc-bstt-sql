@@ -18,6 +18,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { COLORS } from '../../constants/colors';
+import { getAdminUrl } from '../../api/client';
 import xlcLogo from '../../assets/xlc_logo.png';
 
 interface NavItem {
@@ -221,7 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
           )}
           {/* Admin Panel Link */}
           <a
-            href="http://localhost:8000/admin/"
+            href={getAdminUrl('/')}
             target="_blank"
             rel="noopener noreferrer"
             className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group overflow-hidden"
@@ -256,7 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
 
           {/* Upload Data Link */}
           <a
-            href="http://localhost:8000/admin/core/dataupload/add/"
+            href={getAdminUrl('/core/dataupload/add/')}
             target="_blank"
             rel="noopener noreferrer"
             className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group overflow-hidden"
@@ -291,7 +292,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
 
           {/* Database Management Link */}
           <a
-            href="http://localhost:8000/admin/database-management/"
+            href={getAdminUrl('/database-management/')}
             target="_blank"
             rel="noopener noreferrer"
             className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group overflow-hidden"

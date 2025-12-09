@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { COLORS, ENTRY_TYPE_COLORS } from '../constants/colors';
 import { useFilters } from '../contexts/FilterContext';
-import { fetchTimeEntries } from '../api/client';
+import { fetchTimeEntries, downloadFullReport } from '../api/client';
 import { TimeEntry } from '../types';
 import AnimatedNumber from '../components/AnimatedNumber';
 
@@ -822,7 +822,7 @@ const DataExplorer: React.FC = () => {
                       Complete Excel workbook with KPIs, pivots, and analysis sheets. Includes all filtered data.
                     </p>
                     <a
-                      href={`http://localhost:8000/api/reports/full/?year=${filters.year || ''}&xlc_operation=${filters.xlc_operation || ''}`}
+                      href={downloadFullReport(filters)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full py-2.5 rounded-lg text-sm font-semibold text-center transition-all hover:scale-[1.02]"
